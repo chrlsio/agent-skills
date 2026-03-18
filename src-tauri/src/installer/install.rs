@@ -173,9 +173,7 @@ fn render_extra_config(
     agent_slug: &str,
     skill_name: &str,
 ) -> Result<(), InstallError> {
-    let template_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("templates")
-        .join(template_file);
+    let template_path = crate::paths::templates_dir().join(template_file);
     let template_content = fs::read_to_string(template_path)?;
     let mut hbs = Handlebars::new();
     hbs.register_template_string("extra", template_content)?;

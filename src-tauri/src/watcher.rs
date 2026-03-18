@@ -4,10 +4,11 @@ use std::thread;
 use notify::{RecursiveMode, Watcher};
 use tauri::{AppHandle, Emitter};
 
+use crate::paths;
 use crate::registry::loader::{detect_agents, load_agent_configs};
 
 pub fn start_skill_watcher(app: AppHandle) {
-    let agents_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("agents");
+    let agents_dir = paths::agents_dir();
     let Ok(configs) = load_agent_configs(&agents_dir) else {
         return;
     };

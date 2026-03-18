@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use reqwest::blocking::Client;
 
@@ -6,15 +6,12 @@ use crate::installer::install::{install_skill_from_git, install_skill_from_path}
 use crate::installer::uninstall::uninstall_skill as uninstall_skill_impl;
 use crate::models::agent::AgentConfig;
 use crate::models::skill::{Skill, SkillSource};
+use crate::paths;
 use crate::registry::loader::{detect_agents, load_agent_configs};
 use crate::scanner::engine::scan_all_skills as scan_all_skills_impl;
 
-fn agents_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("agents")
-}
-
 fn load_detected_agents() -> Result<Vec<AgentConfig>, String> {
-    let configs = load_agent_configs(&agents_dir()).map_err(|e| e.to_string())?;
+    let configs = load_agent_configs(&paths::agents_dir()).map_err(|e| e.to_string())?;
     Ok(detect_agents(&configs))
 }
 

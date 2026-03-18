@@ -6,14 +6,11 @@ use crate::marketplace::clawhub::fetch_clawhub as fetch_clawhub_impl;
 use crate::marketplace::skillssh::{fetch_skillssh as fetch_skillssh_impl, search_skillssh};
 use crate::marketplace::MarketplaceSkill;
 use crate::parser::skillmd::parse_skill_md_file;
+use crate::paths;
 use crate::registry::loader::{detect_agents, load_agent_configs};
 
-fn agents_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("agents")
-}
-
 fn load_detected_agents() -> Result<Vec<crate::models::agent::AgentConfig>, String> {
-    let cfg = load_agent_configs(&agents_dir()).map_err(|e| e.to_string())?;
+    let cfg = load_agent_configs(&paths::agents_dir()).map_err(|e| e.to_string())?;
     Ok(detect_agents(&cfg))
 }
 

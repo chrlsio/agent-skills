@@ -1,8 +1,9 @@
-pub mod models;
+pub mod commands;
 pub mod installer;
 pub mod marketplace;
-pub mod commands;
+pub mod models;
 pub mod parser;
+pub mod paths;
 pub mod registry;
 pub mod scanner;
 pub mod watcher;
@@ -12,6 +13,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            paths::init(app.handle());
             watcher::start_skill_watcher(app.handle().clone());
             Ok(())
         })
