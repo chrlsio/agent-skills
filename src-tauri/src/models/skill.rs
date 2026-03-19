@@ -11,19 +11,14 @@ pub enum SkillSource {
 }
 
 /// Scope of a skill installation.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(tag = "type")]
 pub enum SkillScope {
     /// Located in a shared global directory, referenced by multiple agents via symlink.
+    #[default]
     SharedGlobal,
     /// Only in a specific agent's skills directory (not a symlink).
     AgentLocal { agent: String },
-}
-
-impl Default for SkillScope {
-    fn default() -> Self {
-        Self::SharedGlobal
-    }
 }
 
 /// Records one installation of a skill under a specific agent.

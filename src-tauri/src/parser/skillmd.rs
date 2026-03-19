@@ -39,7 +39,7 @@ struct Frontmatter {
 pub fn parse_skill_md_file(path: &Path) -> Result<ParsedSkillMd, SkillMdParseError> {
     let content = fs::read_to_string(path)?;
     let base_dir = path.parent().unwrap_or(Path::new("."));
-    Ok(parse_skill_md_content(&content, base_dir)?)
+    parse_skill_md_content(&content, base_dir)
 }
 
 pub fn parse_skill_md_content(

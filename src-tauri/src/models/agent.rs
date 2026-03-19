@@ -1,17 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum SkillFormat {
+    #[default]
     #[serde(rename = "skill-md")]
     SkillMd,
     #[serde(rename = "gemini-extension")]
     GeminiExtension,
-}
-
-impl Default for SkillFormat {
-    fn default() -> Self {
-        Self::SkillMd
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
