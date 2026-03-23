@@ -1,8 +1,14 @@
 const zhCN = {
+  // === Common ===
+  common: {
+    importFolderFailed: "无法添加本地文件夹。",
+  },
+
   // === Layout / Sidebar ===
   sidebar: {
     dashboard: "仪表盘",
-    skills: "技能管理",
+    skills: "全部技能",
+    agents: "Agents",
     marketplace: "市场",
     settings: "设置",
   },
@@ -94,6 +100,10 @@ const zhCN = {
     backToDetail: "返回详情",
     save: "保存",
     failedToLoad: "# 加载 SKILL.md 失败",
+    selectToView: "在左侧列表中选择一个技能以查看详情。",
+    saveFailed: "无法保存 SKILL.md。",
+    syncFailed: "无法同步技能。",
+    uninstallFailed: "无法卸载技能。",
   },
 
   // === Marketplace ===
@@ -128,6 +138,9 @@ const zhCN = {
     sortDefault: "默认",
     sortDownloads: "下载量",
     sortStars: "星标",
+    revealInFinder: "在 Finder 中显示",
+    installFailed: "无法安装技能。",
+    uninstallFailed: "无法卸载技能。",
   },
 
   // === Settings ===
@@ -139,6 +152,14 @@ const zhCN = {
     light: "浅色",
     dark: "深色",
     system: "跟随系统",
+    // Accent Color
+    accentColor: "主题色",
+    accentIndigo: "靛蓝",
+    accentCoral: "珊瑚",
+    accentTeal: "青绿",
+    accentAmber: "琥珀",
+    accentRose: "玫瑰",
+    accentMono: "黑白",
     // Language
     language: "语言",
     // Marketplace Cache
@@ -150,6 +171,7 @@ const zhCN = {
     agentSkillPaths: "Agent 技能路径",
     agentPathsDescription: "各 Agent 的默认技能目录。",
     revealInFinder: "在 Finder 中显示",
+    about: "关于",
   },
 
   // === Repos ===

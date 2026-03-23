@@ -75,13 +75,13 @@ export default memo(function MarkdownContent({ content }: { content: string }) {
             );
           }
           return (
-            <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
+            <code className="rounded-md bg-black/[0.04] dark:bg-white/[0.06] px-1.5 py-0.5 text-xs font-mono text-foreground">
               {children}
             </code>
           );
         },
         pre: ({ children }) => (
-          <pre className="rounded-md bg-muted p-3 mb-2.5 overflow-x-auto text-xs font-mono leading-relaxed">
+          <pre className="rounded-xl glass-inset p-3.5 mb-2.5 overflow-x-auto text-xs font-mono leading-relaxed">
             {children}
           </pre>
         ),

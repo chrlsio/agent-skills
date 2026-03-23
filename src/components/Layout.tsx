@@ -1,23 +1,62 @@
-import { NavLink, Outlet } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { NavLink, Outlet, useSearchParams } from "react-router-dom";
+import { memo, useMemo, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { getVersion } from "@tauri-apps/api/app";
 
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { LayoutDashboard, Puzzle, Store, Settings, GitBranch, FolderOpen } from "lucide-react";
 import logoUrl from "@/assets/logo.png";
+import { getAgentIcon } from "@/lib/agentIcons";
 import { Button } from "@/components/ui/button";
 import ImportRepoDialog from "@/components/ImportRepoDialog";
 import { useResizable } from "@/hooks/useResizable";
 import ResizeHandle from "@/components/ResizeHandle";
 import { useAddLocalDir } from "@/hooks/useRepos";
+import { useToast } from "@/components/ToastProvider";
+import { useAgents } from "@/hooks/useAgents";
+import { useSkills, installedAgents } from "@/hooks/useSkills";
+
+// Hoisted outside component — stable reference, no re-creation per render
+const NAV_LINK_BASE = "flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium border outline-none focus-visible:ring-2 focus-visible:ring-ring/50 transition-[color,background-color,border-color,box-shadow,opacity] duration-150";
+const NAV_LINK_ACTIVE = `${NAV_LINK_BASE} bg-primary/[0.08] dark:bg-primary/[0.12] border-primary/20 dark:border-primary/15 shadow-[inset_0_1px_0_var(--primary)/8%,0_0_8px_var(--primary)/6%] text-primary backdrop-blur-sm`;
+const NAV_LINK_INACTIVE = `${NAV_LINK_BASE} border-transparent text-sidebar-foreground/75 hover:text-primary/80 hover:bg-primary/[0.04] dark:hover:bg-primary/[0.06]`;
+
+function navLinkClass({ isActive }: { isActive: boolean }) {
+  return isActive ? NAV_LINK_ACTIVE : NAV_LINK_INACTIVE;
+}
+
+// Extracted component — avoids IIFE and inline component per agent
+const AgentIcon = memo(function AgentIcon({ slug }: { slug: string }) {
+  const icon = getAgentIcon(slug);
+  return icon.type === "component"
+    ? <icon.Component className="size-4 rounded-[3px]" aria-hidden="true" />
+    : <img src={icon.src} alt="" className="size-4 rounded-[3px]" />;
+});
 
 export default function Layout() {
   const { t } = useTranslation();
-  const [appVersion, setAppVersion] = useState<string>("");
+  const { toast } = useToast();
   const [showImport, setShowImport] = useState(false);
   const addLocalDir = useAddLocalDir();
+  const { data: agents } = useAgents();
+  const { data: skills } = useSkills();
+  const [searchParams] = useSearchParams();
 
+  const detectedAgents = useMemo(
+    () => agents?.filter((a) => a.detected) ?? [],
+    [agents],
+  );
+
+  // Count skills per agent
+  const skillCountByAgent = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const skill of skills ?? []) {
+      for (const slug of installedAgents(skill)) {
+        counts.set(slug, (counts.get(slug) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [skills]);
 
   async function handleImportLocal() {
     const selected = await open({ directory: true, multiple: false });
@@ -26,120 +65,156 @@ export default function Layout() {
         await addLocalDir.mutateAsync(selected);
       } catch (e) {
         console.error("Import local failed:", e instanceof Error ? e.message : String(e));
+        toast(t("common.importFolderFailed"), "destructive");
       }
     }
   }
 
-  const navItems = [
-    { to: "/", icon: LayoutDashboard, label: t("sidebar.dashboard") },
-    { to: "/skills", icon: Puzzle, label: t("sidebar.skills") },
-    { to: "/marketplace", icon: Store, label: t("sidebar.marketplace") },
-    { to: "/settings", icon: Settings, label: t("sidebar.settings") },
-  ];
-
-  useEffect(() => {
-    let active = true;
-    getVersion()
-      .then((version) => {
-        if (active) {
-          setAppVersion(version);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setAppVersion("");
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
   const sidebar = useResizable({
     initial: 200,
-    min: 140,
+    min: 200,
     max: 320,
     storageKey: "sidebar-width",
   });
 
+  const onDragRegionMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.buttons !== 1) return;
+    if (e.detail === 2) {
+      getCurrentWindow().toggleMaximize();
+    } else {
+      getCurrentWindow().startDragging();
+    }
+  }, []);
+
+  // Determine which agent is currently selected from URL
+  const activeAgentSlug = searchParams.get("agent");
+
   return (
     <div className="relative flex h-screen overflow-hidden bg-background">
 
-      {/* Sidebar */}
+      {/* Sidebar — floating glass panel */}
       <aside
-        className="flex shrink-0 flex-col bg-sidebar"
+        aria-label="Sidebar"
+        className="flex shrink-0 flex-col m-2 mr-0 rounded-2xl glass-panel"
         style={{ width: sidebar.width }}
       >
-        {/* Logo area */}
+        {/* Draggable title bar + logo (traffic lights sit in upper portion) */}
         <div
-          className="shrink-0 flex items-end px-4 pb-3 pt-4"
+          className="shrink-0 flex items-end px-3 pt-[42px] pb-3 cursor-default"
+          onMouseDown={onDragRegionMouseDown}
         >
-          <span className="flex items-center gap-3 pointer-events-none select-none">
-            <img src={logoUrl} alt="" className="size-8 rounded-lg" />
-            <span className="text-lg font-semibold text-sidebar-foreground">
+          <div className="flex items-center gap-2.5">
+            <img src={logoUrl} alt="" width={30} height={30} className="size-[30px] rounded-[8px] shadow-sm ring-1 ring-black/5" />
+            <span className="text-[15px] font-semibold text-sidebar-foreground tracking-tight select-none">
               AgentSkills
             </span>
-          </span>
+          </div>
         </div>
 
         {/* Import buttons */}
-        <div className="px-3 pb-1 space-y-1">
+        <div className="px-3 pb-3 space-y-1.5">
           <Button
             variant="outline"
             size="sm"
-            className="w-full justify-start gap-2 border-dashed"
+            className="w-full justify-start gap-2 rounded-xl border-dashed"
             onClick={() => setShowImport(true)}
           >
-            <GitBranch className="size-3.5" />
+            <GitBranch className="size-3.5" aria-hidden="true" />
             {t("repos.importRepo")}
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="w-full justify-start gap-2 border-dashed"
+            className="w-full justify-start gap-2 rounded-xl border-dashed"
             disabled={addLocalDir.isPending}
             onClick={handleImportLocal}
           >
-            <FolderOpen className="size-3.5" />
+            <FolderOpen className="size-3.5" aria-hidden="true" />
             {t("repos.importLocal")}
           </Button>
         </div>
 
-        {/* Nav links */}
-        <nav className="flex flex-1 flex-col gap-1 p-3">
-          {navItems.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === "/"}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                }`
-              }
-            >
-              <Icon className="size-4" />
-              {label}
+        {/* Main nav + agents in scrollable area */}
+        <nav aria-label="Main navigation" className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-3">
+          {/* Top nav */}
+          <NavLink to="/" end className={navLinkClass}>
+            <LayoutDashboard className="size-4" aria-hidden="true" />
+            {t("sidebar.dashboard")}
+          </NavLink>
+
+          <NavLink to="/skills" end className={({ isActive }) => {
+            const reallyActive = isActive && !activeAgentSlug;
+            return navLinkClass({ isActive: reallyActive });
+          }}>
+            <Puzzle className="size-4" aria-hidden="true" />
+            {t("sidebar.skills")}
+            {skills && (
+              <span className="ml-auto text-[10px] tabular-nums text-muted-foreground/60">
+                {skills.length}
+              </span>
+            )}
+          </NavLink>
+
+          <NavLink to="/marketplace" className={navLinkClass}>
+            <Store className="size-4" aria-hidden="true" />
+            {t("sidebar.marketplace")}
+          </NavLink>
+
+          {/* Agents section */}
+          {detectedAgents.length > 0 && (
+            <div className="mt-4">
+              <h2 className="px-3 mb-2 text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider">
+                {t("sidebar.agents")}
+              </h2>
+              <div className="flex flex-col gap-0.5">
+                {detectedAgents.map((agent) => {
+                  const count = skillCountByAgent.get(agent.slug) ?? 0;
+                  const isActive = activeAgentSlug === agent.slug;
+                  return (
+                    <NavLink
+                      key={agent.slug}
+                      to={`/skills?agent=${agent.slug}`}
+                      className={() => navLinkClass({ isActive })}
+                    >
+                      <AgentIcon slug={agent.slug} />
+                      <span className="truncate">{agent.name}</span>
+                      <span className="ml-auto text-[10px] tabular-nums text-muted-foreground/60">
+                        {count}
+                      </span>
+                    </NavLink>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Bottom nav */}
+          <div className="pt-2">
+            <NavLink to="/settings" className={navLinkClass}>
+              <Settings className="size-4" aria-hidden="true" />
+              {t("sidebar.settings")}
             </NavLink>
-          ))}
+          </div>
         </nav>
 
-        {/* Footer */}
-        <div className="border-t border-sidebar-border px-5 py-3">
-          <p className="text-xs text-muted-foreground">
-            {appVersion ? `v${appVersion}` : "v--"}
-          </p>
-        </div>
       </aside>
 
       <ResizeHandle onMouseDown={sidebar.onMouseDown} />
 
       {/* Main content */}
-      <main className="flex-1 min-w-0 relative overflow-y-auto">
-        <Outlet />
-      </main>
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Draggable title bar — above the content panel */}
+        <div
+          className="shrink-0 h-[6px] cursor-default"
+          onMouseDown={onDragRegionMouseDown}
+        />
+        <main className="flex-1 min-w-0 overflow-y-auto">
+          <Outlet />
+        </main>
+      </div>
 
       {showImport && <ImportRepoDialog onClose={() => setShowImport(false)} />}
     </div>

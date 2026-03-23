@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { X, Loader2, GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,11 @@ export default function ImportRepoDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const [url, setUrl] = useState("");
   const addRepo = useAddRepo();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    panelRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -29,15 +34,26 @@ export default function ImportRepoDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 dark:bg-black/40 animate-backdrop-in"
+      role="presentation"
+      onClick={onClose}
+    >
       <div
-        className="w-full max-w-md rounded-lg bg-popover border border-border shadow-lg p-6 space-y-4"
+        ref={panelRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="import-repo-dialog-title"
+        className="w-full max-w-md rounded-3xl p-6 space-y-4 outline-none animate-modal-in glass-elevated"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <GitBranch className="size-4" />
-            <h2 className="text-sm font-semibold">{t("repos.importRepo")}</h2>
+            <h2 id="import-repo-dialog-title" className="text-sm font-semibold">
+              {t("repos.importRepo")}
+            </h2>
           </div>
           <button
             className="text-muted-foreground hover:text-foreground transition-colors"

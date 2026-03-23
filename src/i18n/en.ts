@@ -1,8 +1,14 @@
 const en = {
+  // === Common ===
+  common: {
+    importFolderFailed: "Could not add local folder.",
+  },
+
   // === Layout / Sidebar ===
   sidebar: {
     dashboard: "Dashboard",
-    skills: "Skills",
+    skills: "All Skills",
+    agents: "Agents",
     marketplace: "Marketplace",
     settings: "Settings",
   },
@@ -94,6 +100,10 @@ const en = {
     backToDetail: "Back to detail",
     save: "Save",
     failedToLoad: "# Failed to load SKILL.md",
+    selectToView: "Select a skill from the list to view details.",
+    saveFailed: "Could not save SKILL.md.",
+    syncFailed: "Could not sync skill.",
+    uninstallFailed: "Could not uninstall skill.",
   },
 
   // === Marketplace ===
@@ -128,6 +138,9 @@ const en = {
     sortDefault: "Default",
     sortDownloads: "Downloads",
     sortStars: "Stars",
+    revealInFinder: "Reveal in Finder",
+    installFailed: "Could not install skill.",
+    uninstallFailed: "Could not uninstall skill.",
   },
 
   // === Settings ===
@@ -139,6 +152,14 @@ const en = {
     light: "light",
     dark: "dark",
     system: "system",
+    // Accent Color
+    accentColor: "Accent Color",
+    accentIndigo: "Indigo",
+    accentCoral: "Coral",
+    accentTeal: "Teal",
+    accentAmber: "Amber",
+    accentRose: "Rose",
+    accentMono: "Mono",
     // Language
     language: "Language",
     // Marketplace Cache
@@ -150,6 +171,7 @@ const en = {
     agentSkillPaths: "Agent Skill Paths",
     agentPathsDescription: "Default skill directories for each agent.",
     revealInFinder: "Reveal in Finder",
+    about: "About",
   },
 
   // === Repos ===

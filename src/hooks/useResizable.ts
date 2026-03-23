@@ -31,6 +31,8 @@ export function useResizable({
   const isDragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
+  const widthRef = useRef(width);
+  widthRef.current = width;
 
   // Persist width
   useEffect(() => {
@@ -44,7 +46,7 @@ export function useResizable({
       e.preventDefault();
       isDragging.current = true;
       startX.current = e.clientX;
-      startWidth.current = width;
+      startWidth.current = widthRef.current;
 
       const onMouseMove = (ev: MouseEvent) => {
         if (!isDragging.current) return;
@@ -66,7 +68,7 @@ export function useResizable({
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
     },
-    [width, min, max]
+    [min, max]
   );
 
   return { width, onMouseDown };
@@ -96,6 +98,8 @@ export function useResizableFromRight({
   const isDragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
+  const widthRef = useRef(width);
+  widthRef.current = width;
 
   useEffect(() => {
     if (storageKey) {
@@ -108,7 +112,7 @@ export function useResizableFromRight({
       e.preventDefault();
       isDragging.current = true;
       startX.current = e.clientX;
-      startWidth.current = width;
+      startWidth.current = widthRef.current;
 
       const onMouseMove = (ev: MouseEvent) => {
         if (!isDragging.current) return;
@@ -131,7 +135,7 @@ export function useResizableFromRight({
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
     },
-    [width, min, max]
+    [min, max]
   );
 
   return { width, onMouseDown };

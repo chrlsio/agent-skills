@@ -1,5 +1,5 @@
-import { useRef, useEffect, useCallback, useState } from "react";
-import { Search, X } from "lucide-react";
+import { useRef, useEffect, useCallback, useState, useMemo } from "react";
+import { X } from "lucide-react";
 
 interface SearchInputProps {
   value: string;
@@ -16,7 +16,6 @@ interface SearchInputProps {
  * - Built-in debounce (fires onChange after user stops typing)
  * - Clear button
  * - Cmd+K / Ctrl+K global shortcut to focus
- * - Search icon
  */
 export default function SearchInput({
   value,
@@ -28,6 +27,12 @@ export default function SearchInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const [local, setLocal] = useState(value);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const shortcutLabel = useMemo(() => {
+    if (typeof navigator === "undefined") return "⌘K";
+    const ua = navigator.userAgent;
+    const isMac = /Mac|iPhone|iPad|iPod/i.test(ua);
+    return isMac ? "⌘K" : "Ctrl+K";
+  }, []);
 
   // Sync external value changes (e.g. cleared by parent)
   useEffect(() => {
@@ -73,10 +78,9 @@ export default function SearchInput({
 
   return (
     <div className="relative group">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
       <input
         ref={inputRef}
-        className="h-8 w-full rounded-lg border border-input bg-background pl-9 pr-8 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-1 focus:ring-ring"
+        className="h-8 w-full rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white/40 dark:bg-white/[0.04] backdrop-blur-lg px-4 pr-8 text-sm outline-none transition-all duration-200 placeholder:text-muted-foreground/60 focus:border-primary/30 focus:ring-2 focus:ring-primary/15 focus:bg-white/60 dark:focus:bg-white/[0.06]"
         placeholder={placeholder}
         value={local}
         onChange={(e) => handleChange(e.target.value)}
@@ -99,8 +103,8 @@ export default function SearchInput({
           <X className="size-3.5" />
         </button>
       ) : (
-        <kbd className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center rounded border border-border bg-muted px-1 text-[10px] font-medium text-muted-foreground/60 pointer-events-none">
-          ⌘K
+        <kbd className="absolute right-2 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center rounded-md glass-badge px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/50 pointer-events-none">
+          {shortcutLabel}
         </kbd>
       )}
     </div>

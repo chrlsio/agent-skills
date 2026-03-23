@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Settings as SettingsIcon, Loader2, Trash2, Check, Globe, GitBranch, RefreshCw } from "lucide-react";
+import { Settings as SettingsIcon, Trash2, Check, Globe, GitBranch, RefreshCw, Palette, Info, ExternalLink } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { useAccentColor } from "@/hooks/useAccentColor";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { Button } from "@/components/ui/button";
 import { useAllAgents } from "@/hooks/useAgents";
@@ -24,8 +27,14 @@ export default function SettingsPage() {
   const queryClient = useQueryClient();
   const { data: agents } = useAllAgents();
   const [cacheCleared, setCacheCleared] = useState(false);
+  const { accent, setAccent, presets } = useAccentColor();
   const { data: repos } = useRepos();
   const removeRepo = useRemoveRepo();
+  const [appVersion, setAppVersion] = useState("");
+
+  useEffect(() => {
+    getVersion().then(setAppVersion).catch(() => {});
+  }, []);
   const syncRepo = useSyncRepo();
 
   const { data: settings, isLoading } = useQuery<AppSettings>({
@@ -59,9 +68,20 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" />
-        {t("settings.loadingSettings")}
+      <div className="p-6 space-y-6 animate-fade-in-up">
+        <div className="flex items-center gap-2">
+          <SettingsIcon className="size-5" />
+          <h1 className="text-lg font-semibold tracking-tight">{t("settings.title")}</h1>
+        </div>
+        <div className="space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-2xl p-5 glass-panel glass-shine-always space-y-3">
+              <div className="h-4 w-24 rounded animate-skeleton" />
+              <div className="h-3 w-48 rounded animate-skeleton" />
+              <div className="h-8 w-32 rounded-lg animate-skeleton" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -69,14 +89,14 @@ export default function SettingsPage() {
   const currentLang = i18n.language;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-5 animate-fade-in-up">
       <div className="flex items-center gap-2">
         <SettingsIcon className="size-5" />
-        <h1 className="text-lg font-semibold">{t("settings.title")}</h1>
+        <h1 className="text-lg font-semibold tracking-tight">{t("settings.title")}</h1>
       </div>
 
       {/* Theme */}
-      <section className="space-y-2">
+      <section className="rounded-2xl p-5 glass-panel glass-shine-always space-y-3">
         <h2 className="text-sm font-medium">{t("settings.theme")}</h2>
         <div className="flex gap-1.5">
           {(["light", "dark", "system"] as const).map((themeOption) => {
@@ -102,8 +122,42 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* Accent Color */}
+      <section className="rounded-2xl p-5 glass-panel glass-shine-always space-y-3">
+        <h2 className="text-sm font-medium flex items-center gap-1.5">
+          <Palette className="size-4" />
+          {t("settings.accentColor")}
+        </h2>
+        <div className="flex gap-2 flex-wrap">
+          {presets.map((p) => {
+            const isActive = accent === p.key;
+            const labelKey = `settings.accent${p.key.charAt(0).toUpperCase() + p.key.slice(1)}` as const;
+            return (
+              <button
+                key={p.key}
+                onClick={() => setAccent(p.key)}
+                className={`group flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium transition-all duration-200 cursor-pointer border ${
+                  isActive
+                    ? "glass border-current/20 shadow-sm"
+                    : "border-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
+                }`}
+              >
+                <span
+                  className="size-4 rounded-full shrink-0 ring-1 ring-black/10 dark:ring-white/15"
+                  style={{ background: p.swatch }}
+                />
+                <span className={isActive ? "text-primary" : "text-muted-foreground"}>
+                  {t(labelKey)}
+                </span>
+                {isActive && <Check className="size-3 text-primary" />}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Language */}
-      <section className="space-y-2">
+      <section className="rounded-2xl p-5 glass-panel glass-shine-always space-y-3">
         <h2 className="text-sm font-medium flex items-center gap-1.5">
           <Globe className="size-4" />
           {t("settings.language")}
@@ -123,9 +177,9 @@ export default function SettingsPage() {
       </section>
 
       {/* Cache */}
-      <section className="space-y-2">
+      <section className="rounded-2xl p-5 glass-panel glass-shine-always space-y-3">
         <h2 className="text-sm font-medium">{t("settings.marketplaceCache")}</h2>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground leading-relaxed">
           {t("settings.cacheDescription")}
         </p>
         <Button
@@ -149,16 +203,16 @@ export default function SettingsPage() {
       </section>
 
       {/* Agent paths */}
-      <section className="space-y-2">
+      <section className="rounded-2xl p-5 glass-panel glass-shine-always space-y-3">
         <h2 className="text-sm font-medium">{t("settings.agentSkillPaths")}</h2>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground leading-relaxed">
           {t("settings.agentPathsDescription")}
         </p>
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           {agents?.map((agent) => (
             <div
               key={agent.slug}
-              className="rounded-md bg-muted/50 px-3 py-2 text-xs space-y-1"
+              className="rounded-xl glass-inset px-3 py-2.5 text-xs space-y-1"
             >
               <span className="font-medium">{agent.name}</span>
               {agent.global_paths.length > 0 ? (
@@ -183,22 +237,22 @@ export default function SettingsPage() {
       </section>
 
       {/* Skill Repos */}
-      <section className="space-y-2">
+      <section className="rounded-2xl p-5 glass-panel glass-shine-always space-y-3">
         <h2 className="text-sm font-medium flex items-center gap-1.5">
           <GitBranch className="size-4" />
           {t("repos.skillRepos")}
         </h2>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground leading-relaxed">
           {t("repos.reposDescription")}
         </p>
         {repos && repos.length > 0 ? (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {repos.map((repo) => {
               const isLocal = repo.id.startsWith("local-");
               return (
                 <div
                   key={repo.id}
-                  className="rounded-md bg-muted/50 px-3 py-2 text-xs space-y-1"
+                  className="rounded-xl glass-inset px-3 py-2.5 text-xs space-y-1.5"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
@@ -246,8 +300,34 @@ export default function SettingsPage() {
             })}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground italic">{t("repos.noRepos")}</p>
+          <div className="rounded-xl border border-dashed border-black/[0.06] dark:border-white/[0.06] p-4 text-center">
+            <p className="text-xs text-muted-foreground">{t("repos.noRepos")}</p>
+          </div>
         )}
+      </section>
+
+      {/* About */}
+      <section className="rounded-2xl p-5 glass-panel glass-shine-always space-y-3">
+        <h2 className="text-sm font-medium flex items-center gap-1.5">
+          <Info className="size-4" />
+          {t("settings.about")}
+        </h2>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">AgentSkills</span>
+          {appVersion && (
+            <span className="rounded-full glass-badge px-2 py-0.5 text-[10px] font-medium tabular-nums">
+              v{appVersion}
+            </span>
+          )}
+        </div>
+        <button
+          className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline cursor-pointer"
+          onClick={() => openUrl("https://github.com/chrlsio/agent-skills")}
+        >
+          <GitBranch className="size-3" />
+          github.com/chrlsio/agent-skills
+          <ExternalLink className="size-3" />
+        </button>
       </section>
 
     </div>
