@@ -592,8 +592,8 @@ function SkillDetail({
 
   return (
     <div className="flex-1 min-w-0 m-2 ml-0 rounded-2xl glass-panel flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="shrink-0 flex items-center justify-between px-4 py-3">
+      {/* Header — z-20 to sit above the title-bar drag overlay (z-10) */}
+      <div className="shrink-0 relative z-20 flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <Info className="size-4 shrink-0 text-muted-foreground" />
           <h3 className="text-sm font-medium truncate">{t("skills.detail")}</h3>
@@ -843,18 +843,16 @@ function SkillEditor({
 
   return (
     <div className="flex-1 min-w-0 m-2 ml-0 rounded-2xl glass-panel flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="shrink-0 flex items-center justify-between px-4 py-3">
+      {/* Header — z-20 to sit above the title-bar drag overlay (z-10) */}
+      <div className="shrink-0 relative z-20 flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <Button
             variant="ghost"
-            size="sm"
-            className="gap-1 px-2"
+            size="icon"
             onClick={onBack}
             title={t("skills.backToDetail")}
           >
-            <ArrowLeft className="size-3.5" />
-            {t("skills.backToDetail")}
+            <ArrowLeft className="size-4" />
           </Button>
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-medium truncate">{skill.name}</h3>
