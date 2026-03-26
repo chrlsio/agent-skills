@@ -190,9 +190,17 @@ fn add_skill_repo_sync(app: &AppHandle, repo_url: String) -> Result<SkillRepo, S
     let id = repo_id(&repo_url);
     let local_path = repos_dir().join(&id);
 
-    // Don't re-clone if already exists
+    // Don't re-clone if already exists AND registered in config
     if local_path.exists() {
-        return Err(format!("Repository already added: {}", repo_url));
+        let settings = read_settings().unwrap_or_default();
+        let in_config = settings.repos.as_ref().map_or(false, |repos| {
+            repos.iter().any(|r| r.repo_url.as_deref() == Some(&repo_url))
+        });
+        if in_config {
+            return Err(format!("Repository already added: {}", repo_url));
+        }
+        // Stale directory from a previous interrupted clone — clean up
+        let _ = fs::remove_dir_all(&local_path);
     }
 
     // Ensure parent directory exists; git2::clone will create the target dir
