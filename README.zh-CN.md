@@ -163,6 +163,10 @@ npm run tauri build
 
 欢迎贡献！请先开 Issue 讨论你想要做的改动。
 
+## 社区友链
+
+- [LINUX DO](https://linux.do/)
+
 ## 许可证
 
 [MIT](./LICENSE)

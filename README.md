@@ -161,6 +161,10 @@ npm run tauri build
 
 Contributions are welcome! Please open an issue first to discuss what you'd like to change.
 
+## Community Link
+
+- [LINUX DO](https://linux.do/)
+
 ## License
 
 [MIT](./LICENSE)
