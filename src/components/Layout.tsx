@@ -38,8 +38,8 @@ export default function Layout() {
   const [importMode, setImportMode] = useState<"git" | "local" | null>(null);
   const [importLocalPath, setImportLocalPath] = useState<string | null>(null);
   const pickingFolder = useRef(false);
-  const { data: agents } = useAgents();
-  const { data: skills } = useSkills();
+  const { data: agents, isLoading: agentsLoading } = useAgents();
+  const { data: skills, isLoading: skillsLoading } = useSkills();
   const [searchParams] = useSearchParams();
 
   const detectedAgents = useMemo(
@@ -92,6 +92,8 @@ export default function Layout() {
   // Determine which agent is currently selected from URL
   const activeAgentSlug = searchParams.get("agent");
 
+  const loading = agentsLoading || skillsLoading;
+
   return (
     <div className="relative flex h-screen overflow-hidden bg-background">
 
@@ -115,93 +117,121 @@ export default function Layout() {
           </div>
         </div>
 
-        {/* Import buttons */}
-        <div className="px-3 pb-3 space-y-1.5">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-start gap-2 rounded-xl border-dashed"
-            onClick={() => setImportMode("git")}
-          >
-            <GitBranch className="size-3.5" aria-hidden="true" />
-            {t("repos.importRepo")}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-start gap-2 rounded-xl border-dashed"
-            onClick={handleImportLocal}
-          >
-            <FolderOpen className="size-3.5" aria-hidden="true" />
-            {t("repos.importLocal")}
-          </Button>
-        </div>
-
-        {/* Main nav + agents in scrollable area */}
-        <nav aria-label="Main navigation" className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-3">
-          {/* Top nav */}
-          <NavLink to="/" end className={navLinkClass}>
-            <LayoutDashboard className="size-4" aria-hidden="true" />
-            {t("sidebar.dashboard")}
-          </NavLink>
-
-          <NavLink to="/skills" end className={({ isActive }) => {
-            const reallyActive = isActive && !activeAgentSlug;
-            return navLinkClass({ isActive: reallyActive });
-          }}>
-            <Puzzle className="size-4" aria-hidden="true" />
-            {t("sidebar.skills")}
-            {skills && (
-              <span className="ml-auto text-[10px] tabular-nums text-muted-foreground/60">
-                {skills.length}
-              </span>
-            )}
-          </NavLink>
-
-          <NavLink to="/marketplace" className={navLinkClass}>
-            <Store className="size-4" aria-hidden="true" />
-            {t("sidebar.marketplace")}
-          </NavLink>
-
-          {/* Agents section */}
-          {detectedAgents.length > 0 && (
-            <div className="mt-4">
-              <h2 className="px-3 mb-2 text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider">
-                {t("sidebar.agents")}
-              </h2>
-              <div className="flex flex-col gap-0.5">
-                {detectedAgents.map((agent) => {
-                  const count = skillCountByAgent.get(agent.slug) ?? 0;
-                  const isActive = activeAgentSlug === agent.slug;
-                  return (
-                    <NavLink
-                      key={agent.slug}
-                      to={`/skills?agent=${agent.slug}`}
-                      className={() => navLinkClass({ isActive })}
-                    >
-                      <AgentIcon slug={agent.slug} />
-                      <span className="truncate">{agent.name}</span>
-                      <span className="ml-auto text-[10px] tabular-nums text-muted-foreground/60">
-                        {count}
-                      </span>
-                    </NavLink>
-                  );
-                })}
-              </div>
+        {loading ? (
+          /* ── Sidebar skeleton ── */
+          <div className="flex flex-1 flex-col px-3 pb-3 animate-pulse">
+            {/* Import button placeholders */}
+            <div className="space-y-1.5 pb-3">
+              <div className="h-8 rounded-xl bg-muted/50" />
+              <div className="h-8 rounded-xl bg-muted/50" />
             </div>
-          )}
-
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Bottom nav */}
-          <div className="pt-2">
-            <NavLink to="/settings" className={navLinkClass}>
-              <Settings className="size-4" aria-hidden="true" />
-              {t("sidebar.settings")}
-            </NavLink>
+            {/* Nav item placeholders */}
+            <div className="space-y-1">
+              <div className="h-9 rounded-xl bg-muted/40" />
+              <div className="h-9 rounded-xl bg-muted/40" />
+              <div className="h-9 rounded-xl bg-muted/40" />
+            </div>
+            {/* Agent section placeholder */}
+            <div className="mt-4 space-y-1">
+              <div className="h-3 w-16 rounded bg-muted/30 mx-3 mb-2" />
+              <div className="h-9 rounded-xl bg-muted/30" />
+              <div className="h-9 rounded-xl bg-muted/30" />
+              <div className="h-9 rounded-xl bg-muted/30" />
+            </div>
+            <div className="flex-1" />
+            <div className="h-9 rounded-xl bg-muted/40" />
           </div>
-        </nav>
+        ) : (
+          <>
+            {/* Import buttons */}
+            <div className="px-3 pb-3 space-y-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start gap-2 rounded-xl border-dashed"
+                onClick={() => setImportMode("git")}
+              >
+                <GitBranch className="size-3.5" aria-hidden="true" />
+                {t("repos.importRepo")}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start gap-2 rounded-xl border-dashed"
+                onClick={handleImportLocal}
+              >
+                <FolderOpen className="size-3.5" aria-hidden="true" />
+                {t("repos.importLocal")}
+              </Button>
+            </div>
+
+            {/* Main nav + agents in scrollable area */}
+            <nav aria-label="Main navigation" className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-3">
+              {/* Top nav */}
+              <NavLink to="/" end className={navLinkClass}>
+                <LayoutDashboard className="size-4" aria-hidden="true" />
+                {t("sidebar.dashboard")}
+              </NavLink>
+
+              <NavLink to="/skills" end className={({ isActive }) => {
+                const reallyActive = isActive && !activeAgentSlug;
+                return navLinkClass({ isActive: reallyActive });
+              }}>
+                <Puzzle className="size-4" aria-hidden="true" />
+                {t("sidebar.skills")}
+                {skills && (
+                  <span className="ml-auto text-[10px] tabular-nums text-muted-foreground/60">
+                    {skills.length}
+                  </span>
+                )}
+              </NavLink>
+
+              <NavLink to="/marketplace" className={navLinkClass}>
+                <Store className="size-4" aria-hidden="true" />
+                {t("sidebar.marketplace")}
+              </NavLink>
+
+              {/* Agents section */}
+              {detectedAgents.length > 0 && (
+                <div className="mt-4">
+                  <h2 className="px-3 mb-2 text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider">
+                    {t("sidebar.agents")}
+                  </h2>
+                  <div className="flex flex-col gap-0.5">
+                    {detectedAgents.map((agent) => {
+                      const count = skillCountByAgent.get(agent.slug) ?? 0;
+                      const isActive = activeAgentSlug === agent.slug;
+                      return (
+                        <NavLink
+                          key={agent.slug}
+                          to={`/skills?agent=${agent.slug}`}
+                          className={() => navLinkClass({ isActive })}
+                        >
+                          <AgentIcon slug={agent.slug} />
+                          <span className="truncate">{agent.name}</span>
+                          <span className="ml-auto text-[10px] tabular-nums text-muted-foreground/60">
+                            {count}
+                          </span>
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Spacer */}
+              <div className="flex-1" />
+
+              {/* Bottom nav */}
+              <div className="pt-2">
+                <NavLink to="/settings" className={navLinkClass}>
+                  <Settings className="size-4" aria-hidden="true" />
+                  {t("sidebar.settings")}
+                </NavLink>
+              </div>
+            </nav>
+          </>
+        )}
 
       </aside>
 
@@ -216,7 +246,25 @@ export default function Layout() {
           onMouseDown={onDragRegionMouseDown}
         />
         <main className="flex-1 min-w-0 overflow-y-auto">
-          <Outlet />
+          {loading ? (
+            <div className="p-8 space-y-4 animate-pulse" style={{ paddingTop: isMac ? 58 : 48 }}>
+              <div className="h-7 w-48 rounded-lg bg-muted/50" />
+              <div className="grid grid-cols-3 gap-4">
+                <div className="h-24 rounded-2xl bg-muted/30" />
+                <div className="h-24 rounded-2xl bg-muted/30" />
+                <div className="h-24 rounded-2xl bg-muted/30" />
+              </div>
+              <div className="h-5 w-32 rounded bg-muted/40 mt-6" />
+              <div className="space-y-2">
+                <div className="h-14 rounded-xl bg-muted/25" />
+                <div className="h-14 rounded-xl bg-muted/25" />
+                <div className="h-14 rounded-xl bg-muted/25" />
+                <div className="h-14 rounded-xl bg-muted/25" />
+              </div>
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
 

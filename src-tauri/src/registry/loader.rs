@@ -1,6 +1,5 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use thiserror::Error;
 
@@ -74,12 +73,7 @@ fn detect_agent(config: &AgentConfig) -> AgentConfig {
 }
 
 fn command_exists(command: &str) -> bool {
-    let check = if cfg!(target_os = "windows") {
-        Command::new("where.exe").arg(command).status()
-    } else {
-        Command::new("which").arg(command).status()
-    };
-    matches!(check, Ok(s) if s.success())
+    which::which(command).is_ok()
 }
 
 pub fn expand_home(path: &str) -> String {
