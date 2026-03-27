@@ -36,29 +36,29 @@ pub fn uninstall_skill(
     // Step 1: Remove from agent's own directory (symlink or copied dir)
     if let Some(agent_root) = agent.global_paths.first() {
         let agent_skill = PathBuf::from(agent_root).join(skill_id);
-        remove_entry(&agent_skill);
+        remove_entry(&agent_skill)?;
     }
 
-    // Step 2: Check if canonical copy should be removed
+    // Step 2: Check if canonical copy should be removed.
+    // Only count direct installations (global_paths) as references — NOT
+    // additional_readable_paths, because those are passive "I can read shared"
+    // declarations, not active installations. Without this distinction the
+    // canonical copy can never be removed when agents like Codex, Gemini CLI
+    // declare ~/.agents/skills as a readable path.
     let canonical = shared_skills_dir().join(skill_id);
     if canonical.exists() {
         let still_referenced = agents.iter().any(|a| {
             if a.slug == agent_slug {
                 return false; // skip the agent we just removed from
             }
-            // Check global_paths (direct installs / symlinks)
-            let in_global = a.global_paths.iter().any(|root| {
+            // Only check global_paths (direct installs / symlinks)
+            a.global_paths.iter().any(|root| {
                 PathBuf::from(root).join(skill_id).exists()
-            });
-            // Check additional_readable_paths (agents reading shared dir)
-            let in_readable = a.additional_readable_paths.iter().any(|rp| {
-                PathBuf::from(&rp.path).join(skill_id).exists()
-            });
-            in_global || in_readable
+            })
         });
 
         if !still_referenced {
-            remove_entry(&canonical);
+            remove_entry(&canonical)?;
             let _ = crate::installer::install::remove_provenance(skill_id);
         }
     }
@@ -90,7 +90,7 @@ pub fn uninstall_skill_from_all(
     for agent in agents {
         for root in &agent.global_paths {
             let agent_skill = PathBuf::from(root).join(skill_id);
-            remove_entry(&agent_skill);
+            remove_entry(&agent_skill)?;
         }
 
         // Clean up extra config registries
@@ -108,21 +108,33 @@ pub fn uninstall_skill_from_all(
 
     // Remove canonical copy + provenance
     let canonical = shared_skills_dir().join(skill_id);
-    remove_entry(&canonical);
+    remove_entry(&canonical)?;
     let _ = crate::installer::install::remove_provenance(skill_id);
 
     Ok(())
 }
 
 /// Remove a filesystem entry (symlink, directory, or file) if it exists.
-fn remove_entry(path: &Path) {
-    // Check symlink metadata first (doesn't follow symlinks)
-    if let Ok(meta) = path.symlink_metadata() {
-        if meta.file_type().is_symlink() || meta.file_type().is_file() {
-            let _ = fs::remove_file(path);
-        } else if meta.file_type().is_dir() {
-            let _ = fs::remove_dir_all(path);
+/// Returns Ok(()) if the entry was removed or doesn't exist.
+fn remove_entry(path: &Path) -> Result<(), std::io::Error> {
+    let meta = match path.symlink_metadata() {
+        Ok(m) => m,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(e),
+    };
+    let ft = meta.file_type();
+    if ft.is_symlink() {
+        // On Windows, directory symlinks must be removed with remove_dir, not remove_file.
+        // path.is_dir() follows the symlink target — true for dir symlinks.
+        #[cfg(windows)]
+        if path.is_dir() {
+            return fs::remove_dir(path);
         }
+        fs::remove_file(path)
+    } else if ft.is_dir() {
+        fs::remove_dir_all(path)
+    } else {
+        fs::remove_file(path)
     }
 }
 
