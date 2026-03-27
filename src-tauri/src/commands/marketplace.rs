@@ -15,27 +15,39 @@ fn load_detected_agents() -> Result<Vec<crate::models::agent::AgentConfig>, Stri
 }
 
 #[tauri::command]
-pub fn fetch_skillssh(sort: String, page: u32) -> Result<Vec<MarketplaceSkill>, String> {
-    fetch_skillssh_impl(&sort, page).map_err(|e| e.to_string())
+pub async fn fetch_skillssh(sort: String, page: u32) -> Result<Vec<MarketplaceSkill>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        fetch_skillssh_impl(&sort, page).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("task failed: {e}"))?
 }
 
 #[tauri::command]
-pub fn fetch_clawhub(
+pub async fn fetch_clawhub(
     endpoint: String,
     params: HashMap<String, String>,
 ) -> Result<Vec<MarketplaceSkill>, String> {
-    fetch_clawhub_impl(&endpoint, &params).map_err(|e| e.to_string())
+    tauri::async_runtime::spawn_blocking(move || {
+        fetch_clawhub_impl(&endpoint, &params).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("task failed: {e}"))?
 }
 
 #[tauri::command]
-pub fn search_marketplace(query: String, source: String) -> Result<Vec<MarketplaceSkill>, String> {
-    match source.as_str() {
-        "skills.sh" => search_skillssh(&query).map_err(|e| e.to_string()),
-        "clawhub" => {
-            crate::marketplace::clawhub::search_clawhub(&query).map_err(|e| e.to_string())
+pub async fn search_marketplace(query: String, source: String) -> Result<Vec<MarketplaceSkill>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        match source.as_str() {
+            "skills.sh" => search_skillssh(&query).map_err(|e| e.to_string()),
+            "clawhub" => {
+                crate::marketplace::clawhub::search_clawhub(&query).map_err(|e| e.to_string())
+            }
+            _ => Ok(Vec::new()),
         }
-        _ => Ok(Vec::new()),
-    }
+    })
+    .await
+    .map_err(|e| format!("task failed: {e}"))?
 }
 
 /// Install a marketplace skill, following the SkillDeck strategy:
