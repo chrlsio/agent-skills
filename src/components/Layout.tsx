@@ -31,6 +31,8 @@ const AgentIcon = memo(function AgentIcon({ slug }: { slug: string }) {
     : <img src={icon.src} alt="" className="size-4 rounded-[3px]" />;
 });
 
+const isMac = navigator.platform.toLowerCase().includes("mac");
+
 export default function Layout() {
   const { t } = useTranslation();
   const [importMode, setImportMode] = useState<"git" | "local" | null>(null);
@@ -99,9 +101,10 @@ export default function Layout() {
         className="flex shrink-0 flex-col m-2 mr-0 rounded-2xl glass-panel"
         style={{ width: sidebar.width }}
       >
-        {/* Draggable title bar + logo (traffic lights sit in upper portion) */}
+        {/* Draggable title bar + logo — extra top padding on macOS for traffic lights */}
         <div
-          className="shrink-0 flex items-end px-3 pt-[42px] pb-3 cursor-default"
+          className="shrink-0 flex items-end px-3 pb-3 cursor-default"
+          style={{ paddingTop: isMac ? 42 : 12 }}
           onMouseDown={onDragRegionMouseDown}
         >
           <div className="flex items-center gap-2.5">
@@ -208,8 +211,8 @@ export default function Layout() {
       <div className="flex-1 min-w-0 flex flex-col relative">
         {/* Draggable title bar — overlay, does not push content down */}
         <div
-          className="absolute inset-x-0 top-0 h-[42px] z-10 cursor-default select-none"
-          style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+          className="absolute inset-x-0 top-0 z-10 cursor-default select-none"
+          style={{ height: isMac ? 42 : 32, WebkitAppRegion: "drag" } as React.CSSProperties}
           onMouseDown={onDragRegionMouseDown}
         />
         <main className="flex-1 min-w-0 overflow-y-auto">
