@@ -703,7 +703,7 @@ function SkillDetail({
                   path={installation?.path}
                   tags={inherited && inheritedInst?.inherited_from ? (
                     <span className="text-[10px] text-muted-foreground/60 shrink-0">
-                      {t("skills.via", { name: detectedAgents.find((a) => a.slug === inheritedInst.inherited_from)?.name ?? inheritedInst.inherited_from })}
+                      {t("skills.via", { name: inheritedInst.inherited_from === "shared" ? t("skills.sharedDirectory") : detectedAgents.find((a) => a.slug === inheritedInst.inherited_from)?.name ?? inheritedInst.inherited_from })}
                     </span>
                   ) : undefined}
                   onUninstall={() => onUninstall(skill.id, agent.slug)}

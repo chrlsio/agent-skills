@@ -1,8 +1,9 @@
 import { NavLink, Outlet, useSearchParams } from "react-router-dom";
-import { memo, useMemo, useState, useCallback } from "react";
+import { memo, useMemo, useState, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { open } from "@tauri-apps/plugin-dialog";
 import { LayoutDashboard, Puzzle, Store, Settings, GitBranch, FolderOpen } from "lucide-react";
 import logoUrl from "@/assets/logo.png";
 import { getAgentIcon } from "@/lib/agentIcons";
@@ -33,6 +34,8 @@ const AgentIcon = memo(function AgentIcon({ slug }: { slug: string }) {
 export default function Layout() {
   const { t } = useTranslation();
   const [importMode, setImportMode] = useState<"git" | "local" | null>(null);
+  const [importLocalPath, setImportLocalPath] = useState<string | null>(null);
+  const pickingFolder = useRef(false);
   const { data: agents } = useAgents();
   const { data: skills } = useSkills();
   const [searchParams] = useSearchParams();
@@ -59,6 +62,20 @@ export default function Layout() {
     max: 320,
     storageKey: "sidebar-width",
   });
+
+  const handleImportLocal = useCallback(async () => {
+    if (pickingFolder.current) return; // prevent double-open
+    pickingFolder.current = true;
+    try {
+      const selected = await open({ directory: true, multiple: false });
+      if (selected) {
+        setImportLocalPath(selected);
+        setImportMode("local");
+      }
+    } finally {
+      pickingFolder.current = false;
+    }
+  }, []);
 
   const onDragRegionMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.buttons !== 1) return;
@@ -110,7 +127,7 @@ export default function Layout() {
             variant="outline"
             size="sm"
             className="w-full justify-start gap-2 rounded-xl border-dashed"
-            onClick={() => setImportMode("local")}
+            onClick={handleImportLocal}
           >
             <FolderOpen className="size-3.5" aria-hidden="true" />
             {t("repos.importLocal")}
@@ -200,7 +217,13 @@ export default function Layout() {
         </main>
       </div>
 
-      {importMode && <ImportWizard mode={importMode} onClose={() => setImportMode(null)} />}
+      {importMode && (
+        <ImportWizard
+          mode={importMode}
+          initialLocalPath={importLocalPath}
+          onClose={() => { setImportMode(null); setImportLocalPath(null); }}
+        />
+      )}
     </div>
   );
 }

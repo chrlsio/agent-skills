@@ -524,7 +524,7 @@ function MarketplaceSkillDetail({
                       ? "inherited"
                       : "not-installed";
                   const sourceAgent = isInherited && installation?.inherited_from
-                    ? detectedAgents.find((a) => a.slug === installation.inherited_from)?.name ?? installation.inherited_from
+                    ? installation.inherited_from === "shared" ? t("skills.sharedDirectory") : detectedAgents.find((a) => a.slug === installation.inherited_from)?.name ?? installation.inherited_from
                     : undefined;
                   return (
                     <AgentRow
@@ -534,7 +534,7 @@ function MarketplaceSkillDetail({
                       path={installation?.path}
                       tags={sourceAgent ? (
                         <span className="text-[10px] text-muted-foreground/60 shrink-0">
-                          via {sourceAgent}
+                          {t("skills.via", { name: sourceAgent })}
                         </span>
                       ) : undefined}
                       onUninstall={isDirect && localSkill ? () => onUninstall(localSkill.id, agent.slug) : undefined}

@@ -24,6 +24,14 @@ pub struct RepoProgress {
     pub detail: Option<String>,
 }
 
+/// Combined result for add_skill_repo / add_local_dir so the frontend gets
+/// both the repo metadata and the full skill list in a single IPC round-trip.
+#[derive(Clone, Serialize)]
+pub struct AddRepoResult {
+    pub repo: SkillRepo,
+    pub skills: Vec<Skill>,
+}
+
 /// Directory where repos are cloned
 fn repos_dir() -> PathBuf {
     dirs::home_dir()
@@ -162,7 +170,7 @@ fn resolve_repo_path(repo_id_param: &str) -> Result<PathBuf, String> {
 // ─── Tauri Commands ───
 
 #[tauri::command]
-pub async fn add_skill_repo(app: AppHandle, repo_url: String) -> Result<SkillRepo, String> {
+pub async fn add_skill_repo(app: AppHandle, repo_url: String) -> Result<AddRepoResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
         add_skill_repo_sync(&app, repo_url)
     })
@@ -186,14 +194,14 @@ fn proxy_fetch_options<'a>() -> FetchOptions<'a> {
     opts
 }
 
-fn add_skill_repo_sync(app: &AppHandle, repo_url: String) -> Result<SkillRepo, String> {
+fn add_skill_repo_sync(app: &AppHandle, repo_url: String) -> Result<AddRepoResult, String> {
     let id = repo_id(&repo_url);
     let local_path = repos_dir().join(&id);
 
     // Don't re-clone if already exists AND registered in config
     if local_path.exists() {
         let settings = read_settings().unwrap_or_default();
-        let in_config = settings.repos.as_ref().map_or(false, |repos| {
+        let in_config = settings.repos.as_ref().is_some_and(|repos| {
             repos.iter().any(|r| r.repo_url.as_deref() == Some(&repo_url))
         });
         if in_config {
@@ -226,6 +234,10 @@ fn add_skill_repo_sync(app: &AppHandle, repo_url: String) -> Result<SkillRepo, S
     let mut repo = build_skill_repo(&repo_url, &local_path, &id);
     repo.last_synced = Some(now.clone());
 
+    // Scan skills while we're at it — avoids a second IPC round-trip
+    let skills = list_repo_skills_sync(id.clone()).unwrap_or_default();
+    repo.skill_count = skills.len();
+
     emit_progress(app, "saving", None);
 
     // Save to config
@@ -240,7 +252,7 @@ fn add_skill_repo_sync(app: &AppHandle, repo_url: String) -> Result<SkillRepo, S
 
     emit_progress(app, "done", None);
 
-    Ok(repo)
+    Ok(AddRepoResult { repo, skills })
 }
 
 #[tauri::command]
@@ -480,7 +492,7 @@ fn install_repo_skill_sync(
 }
 
 #[tauri::command]
-pub async fn add_local_dir(path: String) -> Result<SkillRepo, String> {
+pub async fn add_local_dir(path: String) -> Result<AddRepoResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
         add_local_dir_sync(path)
     })
@@ -488,7 +500,7 @@ pub async fn add_local_dir(path: String) -> Result<SkillRepo, String> {
     .map_err(|e| format!("task failed: {e}"))?
 }
 
-fn add_local_dir_sync(path: String) -> Result<SkillRepo, String> {
+fn add_local_dir_sync(path: String) -> Result<AddRepoResult, String> {
     let dir = Path::new(&path);
     if !dir.is_dir() {
         return Err("Path is not a directory".to_string());
@@ -504,32 +516,35 @@ fn add_local_dir_sync(path: String) -> Result<SkillRepo, String> {
 
     let id = local_dir_id(&path);
     let manifest = parse_manifest(dir);
-    let sr = skills_root(dir, &manifest);
     let name = manifest.name.unwrap_or_else(|| {
         dir.file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "Local".to_string())
     });
 
+    let repos = settings.repos.get_or_insert_with(Vec::new);
+    repos.push(RepoEntry {
+        repo_url: None,
+        local_path: Some(path.clone()),
+        last_synced: None,
+    });
+    write_settings(settings).map_err(|e| e.to_string())?;
+
+    // Scan skills up front — avoids a second IPC round-trip
+    // (must happen after settings write so resolve_repo_path can find the local dir)
+    let skills = list_repo_skills_sync(id.clone()).unwrap_or_default();
+
     let repo = SkillRepo {
         id: id.clone(),
         name,
         description: manifest.description,
         repo_url: path.clone(),
-        local_path: path.clone(),
+        local_path: path,
         last_synced: None,
-        skill_count: count_skills(&sr),
+        skill_count: skills.len(),
     };
 
-    let repos = settings.repos.get_or_insert_with(Vec::new);
-    repos.push(RepoEntry {
-        repo_url: None,
-        local_path: Some(path),
-        last_synced: None,
-    });
-    write_settings(settings).map_err(|e| e.to_string())?;
-
-    Ok(repo)
+    Ok(AddRepoResult { repo, skills })
 }
 
 #[cfg(test)]

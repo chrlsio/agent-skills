@@ -84,7 +84,8 @@ const en = {
     skillMetadata: "Skill Metadata",
     // Agent Assignment
     agentsLabel: "Agents ({{installed}}/{{total}})",
-    via: "via {{name}}",
+    via: "Source: {{name}}",
+    sharedDirectory: "Shared Directory",
     symlink: "symlink",
     install: "Install",
     sync: "Sync",

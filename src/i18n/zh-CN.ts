@@ -84,7 +84,8 @@ const zhCN = {
     skillMetadata: "技能元数据",
     // Agent Assignment
     agentsLabel: "Agent ({{installed}}/{{total}})",
-    via: "来自 {{name}}",
+    via: "来源：{{name}}",
+    sharedDirectory: "共享目录",
     symlink: "符号链接",
     install: "安装",
     sync: "同步",
