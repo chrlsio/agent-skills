@@ -43,13 +43,47 @@ pub fn debug_paths() -> HashMap<String, String> {
     map.insert("home_dir".into(),
         dirs::home_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or("NONE".into()));
 
-    // Check key skill paths
+    // Check key skill paths and list contents
     for path in &["~/.claude/skills", "~/.agents/skills"] {
         let expanded = crate::registry::loader::expand_home(path);
-        let exists = std::path::Path::new(&expanded).exists();
-        map.insert(format!("{path}_expanded"), expanded);
+        let p = std::path::Path::new(&expanded);
+        let exists = p.exists();
+        map.insert(format!("{path}_expanded"), expanded.clone());
         map.insert(format!("{path}_exists"), exists.to_string());
+
+        if exists {
+            let entries: Vec<String> = std::fs::read_dir(p)
+                .into_iter()
+                .flatten()
+                .flatten()
+                .filter_map(|e| {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    let is_dir = e.path().is_dir();
+                    let has_skill = e.path().join("SKILL.md").is_file();
+                    if is_dir {
+                        Some(format!("{name}{}", if has_skill { " [SKILL.md]" } else { "" }))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            map.insert(format!("{path}_contents"), if entries.is_empty() {
+                "(empty)".into()
+            } else {
+                entries.join(", ")
+            });
+        }
     }
+
+    // Scan result count
+    let scan_result = crate::registry::loader::load_agent_configs(&crate::paths::agents_dir())
+        .ok()
+        .and_then(|configs| {
+            let agents = crate::registry::loader::detect_agents(&configs);
+            crate::scanner::engine::scan_all_skills(&agents).ok()
+        });
+    map.insert("scan_total_skills".into(),
+        scan_result.as_ref().map(|s| s.len().to_string()).unwrap_or("ERROR".into()));
 
     map
 }
