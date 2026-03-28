@@ -79,7 +79,9 @@ fn command_exists(command: &str) -> bool {
 pub fn expand_home(path: &str) -> String {
     if let Some(stripped) = path.strip_prefix("~/") {
         if let Some(home) = dirs::home_dir() {
-            return home.join(stripped).to_string_lossy().to_string();
+            // Normalize separators: on Windows, .join preserves forward slashes from the TOML input
+            let normalized = stripped.replace('/', std::path::MAIN_SEPARATOR_STR);
+            return home.join(normalized).to_string_lossy().to_string();
         }
     }
     path.to_string()
