@@ -30,7 +30,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["app", "dmg", "deb", "appimage", "nsis"],
     "resources": [
       "agents/*"
     ],

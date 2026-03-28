@@ -629,13 +629,6 @@ function SkillDetail({
               {skill.description}
             </p>
           )}
-          <button
-            className="text-xs text-muted-foreground/60 hover:text-primary font-mono mt-1.5 break-all text-left transition-colors cursor-pointer"
-            title={t("skills.revealInFinder")}
-            onClick={() => revealItemInDir(skill.canonical_path)}
-          >
-            {skill.canonical_path}
-          </button>
         </div>
 
         <hr className="border-border" />

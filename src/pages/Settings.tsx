@@ -297,36 +297,8 @@ export default function SettingsPage() {
           github.com/chrlsio/agent-skills
           <ExternalLink className="size-3" />
         </button>
-        <DebugPaths />
       </section>
 
-    </div>
-  );
-}
-
-function DebugPaths() {
-  const [paths, setPaths] = useState<Record<string, string> | null>(null);
-
-  async function loadPaths() {
-    const data = await invoke<Record<string, string>>("debug_paths");
-    setPaths(data);
-  }
-
-  return (
-    <div className="pt-2 space-y-2">
-      <Button variant="outline" size="sm" onClick={loadPaths}>
-        Debug Paths
-      </Button>
-      {paths && (
-        <div className="rounded-lg glass-inset p-3 text-[11px] font-mono space-y-1 break-all">
-          {Object.entries(paths).sort(([a],[b]) => a.localeCompare(b)).map(([k, v]) => (
-            <div key={k}>
-              <span className="text-muted-foreground">{k}:</span>{" "}
-              <span className={v === "false" || v === "NONE" || v === "0" ? "text-destructive" : ""}>{v}</span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

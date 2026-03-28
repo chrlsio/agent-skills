@@ -21,7 +21,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::agents::list_agents,
             commands::agents::detect_agents,
-            commands::agents::debug_paths,
             commands::skills::scan_all_skills,
             commands::skills::scan_agent_skills,
             commands::skills::install_skill,
