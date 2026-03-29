@@ -9,8 +9,8 @@ pub mod scanner;
 pub mod watcher;
 
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
-use tauri::tray::TrayIconEvent;
-use tauri::Manager;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
+use tauri::{Manager, WindowEvent};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -27,6 +27,7 @@ pub fn run() {
 
             if let Some(tray) = app.tray_by_id("main-tray") {
                 tray.set_menu(Some(menu))?;
+                tray.set_show_menu_on_left_click(false)?;
                 tray.on_menu_event(move |app, event| match event.id().as_ref() {
                     "show" => {
                         if let Some(window) = app.get_webview_window("main") {
@@ -40,7 +41,12 @@ pub fn run() {
                     _ => {}
                 });
                 tray.on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click { .. } = event {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
                         if let Some(window) = tray.app_handle().get_webview_window("main") {
                             let _ = window.show();
                             let _ = window.set_focus();
@@ -79,6 +85,13 @@ pub fn run() {
             commands::repos::list_repo_skills,
             commands::repos::install_repo_skill,
         ])
+        .on_window_event(|window, event| {
+            #[cfg(target_os = "windows")]
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                let _ = window.hide();
+                api.prevent_close();
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
