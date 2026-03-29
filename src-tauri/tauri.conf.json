@@ -26,6 +26,12 @@
     ],
     "security": {
       "csp": null
+    },
+    "trayIcon": {
+      "id": "main-tray",
+      "iconPath": "icons/icon-rounded.png",
+      "iconAsTemplate": false,
+      "tooltip": "AgentSkills"
     }
   },
   "bundle": {
