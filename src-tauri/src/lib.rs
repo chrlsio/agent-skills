@@ -10,7 +10,9 @@ pub mod watcher;
 
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
-use tauri::{Manager, WindowEvent};
+use tauri::Manager;
+#[cfg(target_os = "windows")]
+use tauri::WindowEvent;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -85,10 +87,10 @@ pub fn run() {
             commands::repos::list_repo_skills,
             commands::repos::install_repo_skill,
         ])
-        .on_window_event(|window, event| {
+        .on_window_event(|_window, _event| {
             #[cfg(target_os = "windows")]
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                let _ = window.hide();
+            if let WindowEvent::CloseRequested { api, .. } = _event {
+                let _ = _window.hide();
                 api.prevent_close();
             }
         })
