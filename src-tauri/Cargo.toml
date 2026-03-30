@@ -24,10 +24,10 @@ serde_yaml = "0.9"
 toml = "0.8"
 handlebars = "6"
 notify = "7"
-reqwest = { version = "0.12", features = ["json", "blocking"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "blocking", "rustls-tls"] }
 scraper = "0.22"
 rusqlite = { version = "0.32", features = ["bundled"] }
-git2 = "0.19"
+git2 = { version = "0.19", features = ["vendored-openssl"] }
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "6"
 glob = "0.3"
