@@ -226,6 +226,24 @@ const zhCN = {
     localSource: "本地",
     gitSource: "Git",
   },
+
+  // === Close Dialog ===
+  close: {
+    title: "关闭应用",
+    description: "你希望最小化到系统托盘还是退出应用？",
+    minimize: "最小化到托盘",
+    quit: "退出",
+    remember: "记住我的选择，下次不再提示",
+  },
+
+  // === Settings (close behavior) ===
+  settings_close: {
+    closeBehavior: "关闭行为",
+    closeBehaviorDescription: "选择关闭窗口时的行为。",
+    ask: "每次询问",
+    minimize: "最小化到托盘",
+    quit: "退出应用",
+  },
 } as const;
 
 export default zhCN;
