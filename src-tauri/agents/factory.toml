@@ -1,0 +1,8 @@
+slug = "factory"
+name = "Factory"
+enabled = true
+global_paths = ["~/.factory/skills"]
+skill_format = "skill-md"
+cli_command = "droid"
+install_docs_url = "https://factory.ai/"
+install_source_label = "official-site"

@@ -1,5 +1,5 @@
 slug = "gemini-cli"
-name = "Gemini CLI"
+name = "Gemini"
 enabled = true
 global_paths = ["~/.gemini/skills"]
 skill_format = "skill-md"

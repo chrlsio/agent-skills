@@ -20,6 +20,7 @@ export interface Skill {
   canonical_path: string;
   source: unknown;
   metadata: unknown;
+  collection: string | null;
   scope: SkillScope;
   installations: SkillInstallation[];
 }

@@ -1,0 +1,10 @@
+slug = "qoder"
+name = "Qoder"
+enabled = true
+global_paths = ["~/.qoder/skills"]
+skill_format = "skill-md"
+cli_command = "qodercli"
+install_command = "brew install qoderai/qoder/qodercli --cask"
+install_command_windows = "npm install -g @qoder-ai/qodercli"
+install_docs_url = "https://docs.qoder.com/cli/quick-start"
+install_source_label = "official-docs"

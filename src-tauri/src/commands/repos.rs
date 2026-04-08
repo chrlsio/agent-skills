@@ -475,6 +475,7 @@ fn list_repo_skills_sync(repo_id_param: String) -> Result<Vec<Skill>, String> {
             canonical_path: candidate.dir.to_string_lossy().to_string(),
             source: Some(source),
             metadata: parsed.metadata,
+            collection: None,
             scope: SkillScope::default(),
             installations: Vec::new(),
         });

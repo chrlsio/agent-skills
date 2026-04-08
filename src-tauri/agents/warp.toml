@@ -1,0 +1,42 @@
+slug = "warp"
+name = "Warp"
+enabled = true
+global_paths = ["~/.warp/skills"]
+skill_format = "skill-md"
+install_command = "brew install --cask warp"
+install_command_windows = "winget install Warp.Warp"
+install_docs_url = "https://www.warp.dev/"
+install_source_label = "official-site"
+detect_paths = ["/Applications/Warp.app", "~/AppData/Roaming/warp/Warp", "~/.local/share/warp-terminal"]
+
+[[additional_readable_paths]]
+path = "~/.agents/skills"
+source_agent = "shared"
+
+[[additional_readable_paths]]
+path = "~/.claude/skills"
+source_agent = "claude-code"
+
+[[additional_readable_paths]]
+path = "~/.codex/skills"
+source_agent = "codex"
+
+[[additional_readable_paths]]
+path = "~/.cursor/skills"
+source_agent = "cursor"
+
+[[additional_readable_paths]]
+path = "~/.gemini/skills"
+source_agent = "gemini-cli"
+
+[[additional_readable_paths]]
+path = "~/.copilot/skills"
+source_agent = "copilot-cli"
+
+[[additional_readable_paths]]
+path = "~/.factory/skills"
+source_agent = "factory"
+
+[[additional_readable_paths]]
+path = "~/.opencode/skills"
+source_agent = "opencode"

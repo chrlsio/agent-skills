@@ -10,6 +10,7 @@ import {
   Pencil,
   ArrowLeft,
   RefreshCw,
+  ChevronRight,
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -193,6 +194,23 @@ export default function SkillsManager() {
     }
     return list;
   }, [mergedSkills, filter, deferredSearch]);
+
+  // Skills managed by a collection (parent + children) — read-only, no sync/uninstall
+  const collectionSkillIds = useMemo(() => {
+    const ids = new Set<string>();
+    const collectionNames = new Set<string>();
+    for (const s of mergedSkills ?? []) {
+      if (s.collection) {
+        ids.add(s.id);
+        collectionNames.add(s.collection);
+      }
+    }
+    // Also mark the parent skill
+    for (const s of mergedSkills ?? []) {
+      if (collectionNames.has(s.id)) ids.add(s.id);
+    }
+    return ids;
+  }, [mergedSkills]);
 
   async function refreshAndReselect() {
     // Force a fresh scan, bypassing cache
@@ -409,22 +427,15 @@ export default function SkillsManager() {
             <p className="text-sm text-muted-foreground">{t("skills.noSkillsFound")}</p>
           </div>
         ) : (
-          <div
-            className="space-y-1 transition-opacity"
-            style={{ opacity: isSearchStale ? 0.5 : 1 }}
-          >
-            {filtered.map((skill) => (
-              <SkillListItem
-                key={skill.id}
-                skill={skill}
-                selected={selectedId === skill.id}
-                agents={agents}
-                onSelect={selectSkill}
-                onReveal={revealItemInDir}
-                onUninstallAll={handleUninstallAll}
-              />
-            ))}
-          </div>
+          <SkillListGrouped
+            skills={filtered}
+            selectedId={selectedId}
+            agents={agents}
+            onSelect={selectSkill}
+            onReveal={revealItemInDir}
+            onUninstallAll={handleUninstallAll}
+            isSearchStale={isSearchStale}
+          />
         )}
       </div>
 
@@ -457,6 +468,7 @@ export default function SkillsManager() {
             detectedAgents={detectedAgents}
             busyAgents={busyAgents}
             updating={updating}
+            readOnly={collectionSkillIds.has(selectedSkill.id)}
             onClose={closePanel}
             onEdit={() => setPanelMode("editor")}
             onSync={handleSync}
@@ -476,6 +488,246 @@ export default function SkillsManager() {
   );
 }
 
+function SkillListGrouped({
+  skills,
+  selectedId,
+  agents,
+  onSelect,
+  onReveal,
+  onUninstallAll,
+  isSearchStale,
+}: {
+  skills: SkillWithRepo[];
+  selectedId: string | null;
+  agents: import("@/hooks/useAgents").AgentConfig[] | undefined;
+  onSelect: (skill: SkillWithRepo) => void;
+  onReveal: (path: string) => void;
+  onUninstallAll: (skill: SkillWithRepo) => void;
+  isSearchStale: boolean;
+}) {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  // Group skills: collection skills grouped under their parent, standalone skills as-is
+  const groups = useMemo(() => {
+    // Collect child skills by collection name
+    const children = new Map<string, SkillWithRepo[]>();
+    for (const skill of skills) {
+      if (skill.collection) {
+        const list = children.get(skill.collection) ?? [];
+        list.push(skill);
+        children.set(skill.collection, list);
+      }
+    }
+    // Find collection names that have children
+    const collectionNames = new Set(children.keys());
+
+    type Group =
+      | { type: "standalone"; skill: SkillWithRepo }
+      | { type: "collection"; parent: SkillWithRepo; children: SkillWithRepo[] };
+    const result: Group[] = [];
+    for (const skill of skills) {
+      if (skill.collection) {
+        // Skip child skills — they're nested under the parent
+        continue;
+      }
+      if (collectionNames.has(skill.id)) {
+        // This skill is the parent of a collection
+        result.push({ type: "collection", parent: skill, children: children.get(skill.id)! });
+      } else {
+        result.push({ type: "standalone", skill });
+      }
+    }
+    return result;
+  }, [skills]);
+
+  const toggle = (name: string) =>
+    setCollapsed((prev) => ({ ...prev, [name]: !prev[name] }));
+
+  return (
+    <div
+      className="space-y-1 transition-opacity"
+      style={{ opacity: isSearchStale ? 0.5 : 1 }}
+    >
+      {groups.map((group) => {
+        if (group.type === "standalone") {
+          return (
+            <SkillListItem
+              key={group.skill.id}
+              skill={group.skill}
+              selected={selectedId === group.skill.id}
+              agents={agents}
+              onSelect={onSelect}
+              onReveal={onReveal}
+              onUninstallAll={onUninstallAll}
+            />
+          );
+        }
+        const isCollapsed = collapsed[group.parent.id] ?? true;
+        return (
+          <div key={`collection-${group.parent.id}`}>
+            <CollectionItem
+              parent={group.parent}
+              childCount={group.children.length}
+              selected={selectedId === group.parent.id}
+              collapsed={isCollapsed}
+              agents={agents}
+              onSelect={onSelect}
+              onReveal={onReveal}
+              onToggle={() => toggle(group.parent.id)}
+            />
+            {!isCollapsed && (
+              <div className="ml-3 border-l border-black/[0.06] dark:border-white/[0.06] pl-1">
+                {group.children.map((skill) => (
+                  <SkillListItem
+                    key={skill.id}
+                    skill={skill}
+                    selected={selectedId === skill.id}
+                    agents={agents}
+                    onSelect={onSelect}
+                    onReveal={onReveal}
+                    onUninstallAll={onUninstallAll}
+                    disableContextMenu
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const CollectionItem = memo(function CollectionItem({
+  parent,
+  childCount,
+  selected,
+  collapsed,
+  agents,
+  onSelect,
+  onReveal,
+  onToggle,
+}: {
+  parent: SkillWithRepo;
+  childCount: number;
+  selected: boolean;
+  collapsed: boolean;
+  agents: import("@/hooks/useAgents").AgentConfig[] | undefined;
+  onSelect: (skill: SkillWithRepo) => void;
+  onReveal: (path: string) => void;
+  onToggle: () => void;
+}) {
+  const { t } = useTranslation();
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const directSlugs = installedAgents(parent);
+  const inheritedSlugs = parent.installations
+    .filter((i) => i.is_inherited)
+    .map((i) => i.agent_slug)
+    .filter((s) => !directSlugs.includes(s));
+
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const raf = requestAnimationFrame(() => {
+      document.addEventListener("click", close);
+      document.addEventListener("contextmenu", close);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener("click", close);
+      document.removeEventListener("contextmenu", close);
+    };
+  }, [menu]);
+
+  return (
+    <div className="relative">
+      <div
+        className={cn(
+          "rounded-xl px-3 py-2.5 transition-all duration-200 select-none",
+          selected
+            ? "glass glass-shine-always"
+            : "border border-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.04]",
+        )}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setMenu({ x: e.clientX, y: e.clientY });
+        }}
+      >
+        <button
+          type="button"
+          className="w-full text-left"
+          onClick={() => { onSelect(parent); if (collapsed) onToggle(); }}
+        >
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-medium truncate">{parent.name}</h3>
+            <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+              {childCount} skills
+            </span>
+            <button
+              type="button"
+              className="shrink-0 ml-auto p-0.5 rounded hover:bg-black/[0.06] dark:hover:bg-white/[0.08] transition-colors"
+              onClick={(e) => { e.stopPropagation(); onToggle(); }}
+            >
+              <ChevronRight
+                className={cn(
+                  "size-3.5 text-muted-foreground transition-transform duration-200",
+                  !collapsed && "rotate-90",
+                )}
+              />
+            </button>
+          </div>
+          {parent.description && (
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+              {parent.description}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {directSlugs.map((slug) => (
+              <span
+                key={slug}
+                className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground"
+              >
+                {agents?.find((a) => a.slug === slug)?.name ?? slug}
+              </span>
+            ))}
+            {inheritedSlugs.map((slug) => (
+              <span
+                key={slug}
+                className="rounded-full border border-dashed border-muted-foreground/30 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+              >
+                {agents?.find((a) => a.slug === slug)?.name ?? slug}
+              </span>
+            ))}
+          </div>
+        </button>
+      </div>
+
+      {menu && (
+        <div
+          className="fixed z-50 w-[180px] rounded-xl glass-elevated p-1 shadow-lg animate-fade-in-up"
+          style={{ left: menu.x, top: menu.y }}
+        >
+          <button
+            className="w-full px-2.5 py-1.5 text-[13px] text-left rounded-lg hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
+            onClick={() => {
+              onReveal(parent.canonical_path);
+              setMenu(null);
+            }}
+          >
+            {t("skills.revealInFinder")}
+          </button>
+          <button
+            className="w-full px-2.5 py-1.5 text-[13px] text-left rounded-lg text-destructive/40 cursor-not-allowed"
+            disabled
+          >
+            {t("skills.uninstallAll")}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+});
+
 const SkillListItem = memo(function SkillListItem({
   skill,
   selected,
@@ -483,6 +735,7 @@ const SkillListItem = memo(function SkillListItem({
   onSelect,
   onReveal,
   onUninstallAll,
+  disableContextMenu = false,
 }: {
   skill: SkillWithRepo;
   selected: boolean;
@@ -490,6 +743,7 @@ const SkillListItem = memo(function SkillListItem({
   onSelect: (skill: SkillWithRepo) => void;
   onReveal: (path: string) => void;
   onUninstallAll: (skill: SkillWithRepo) => void;
+  disableContextMenu?: boolean;
 }) {
   const { t } = useTranslation();
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
@@ -529,7 +783,7 @@ const SkillListItem = memo(function SkillListItem({
         onClick={() => onSelect(skill)}
         onContextMenu={(e) => {
           e.preventDefault();
-          setMenu({ x: e.clientX, y: e.clientY });
+          if (!disableContextMenu) setMenu({ x: e.clientX, y: e.clientY });
         }}
       >
         <h3 className="text-sm font-medium truncate">{skill.name}</h3>
@@ -638,6 +892,7 @@ function SkillDetail({
   detectedAgents,
   busyAgents,
   updating,
+  readOnly = false,
   onClose,
   onEdit,
   onSync,
@@ -648,6 +903,7 @@ function SkillDetail({
   detectedAgents: AgentConfig[];
   busyAgents: Map<string, BusyOp>;
   updating: boolean;
+  readOnly?: boolean;
   onClose: () => void;
   onEdit: () => void;
   onSync: (skillId: string, targetAgents: string[]) => void;
@@ -787,56 +1043,61 @@ function SkillDetail({
             skill={skill}
             detectedAgents={detectedAgents}
             busyAgents={busyAgents}
+            readOnly={readOnly}
             onInstall={(targets) => onSync(skill.id, targets)}
             onUninstall={onUninstall}
           />
         </DetailSection>
 
-        <hr className="border-border" />
+        {!readOnly && (
+          <>
+            <hr className="border-border" />
 
-        {/* Actions */}
-        <DetailSection label={t("skills.actions")}>
-          <div className="flex flex-col gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start gap-2"
-              onClick={onEdit}
-            >
-              <Pencil className="size-3.5" />
-              {t("skills.editSkillMd")}
-            </Button>
-            {sourceRepo && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-start gap-2"
-                disabled={updating}
-                onClick={() => onUpdate(skill.id)}
-              >
-                <RefreshCw className={`size-3.5 ${updating ? "animate-spin" : ""}`} />
-                {updating ? t("skills.updating") : t("skills.updateFromSource")}
-              </Button>
-            )}
-            {syncTargets.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-start gap-2"
-                disabled={busyAgents.size > 0}
-                onClick={() =>
-                  onSync(
-                    skill.id,
-                    syncTargets.map((a) => a.slug)
-                  )
-                }
-              >
-                <Copy className="size-3.5" />
-                {t("skills.syncTo", { names: syncTargets.map((a) => a.name).join(", ") })}
-              </Button>
-            )}
-          </div>
-        </DetailSection>
+            {/* Actions */}
+            <DetailSection label={t("skills.actions")}>
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={onEdit}
+                >
+                  <Pencil className="size-3.5" />
+                  {t("skills.editSkillMd")}
+                </Button>
+                {sourceRepo && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2"
+                    disabled={updating}
+                    onClick={() => onUpdate(skill.id)}
+                  >
+                    <RefreshCw className={`size-3.5 ${updating ? "animate-spin" : ""}`} />
+                    {updating ? t("skills.updating") : t("skills.updateFromSource")}
+                  </Button>
+                )}
+                {syncTargets.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2"
+                    disabled={busyAgents.size > 0}
+                    onClick={() =>
+                      onSync(
+                        skill.id,
+                        syncTargets.map((a) => a.slug)
+                      )
+                    }
+                  >
+                    <Copy className="size-3.5" />
+                    {t("skills.syncTo", { names: syncTargets.map((a) => a.name).join(", ") })}
+                  </Button>
+                )}
+              </div>
+            </DetailSection>
+          </>
+        )}
 
         <hr className="border-border" />
 

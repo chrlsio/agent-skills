@@ -15,7 +15,10 @@ import {
 } from "@lobehub/icons";
 
 // Fallback SVGs for icons not available in @lobehub/icons
+import factorySvg from "@/assets/agents/factory.svg";
 import kiroSvg from "@/assets/agents/kiro.svg";
+import warpSvg from "@/assets/agents/warp.svg";
+import qoderSvg from "@/assets/agents/qoder.svg";
 import codebuddySvg from "@/assets/agents/codebuddy.svg";
 import defaultSvg from "@/assets/agents/default.svg";
 
@@ -38,7 +41,10 @@ const AGENT_ICONS: Record<string, IconComponent> = {
 
 // Static SVG fallback icons (img src)
 const AGENT_FALLBACK_ICONS: Record<string, string> = {
+  "factory": factorySvg,
   "kiro": kiroSvg,
+  "warp": warpSvg,
+  "qoder": qoderSvg,
   "codebuddy": codebuddySvg,
 };
 

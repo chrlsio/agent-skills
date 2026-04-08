@@ -35,6 +35,11 @@ pub fn load_agent_configs(dir: &Path) -> Result<Vec<AgentConfig>, RegistryError>
         for rp in &mut config.additional_readable_paths {
             rp.path = expand_home(&rp.path);
         }
+        config.detect_paths = config
+            .detect_paths
+            .into_iter()
+            .map(|p| expand_home(&p))
+            .collect();
         configs.push(config);
     }
     configs.sort_by(|a, b| a.slug.cmp(&b.slug));
@@ -52,7 +57,12 @@ fn detect_agent(config: &AgentConfig) -> AgentConfig {
         .as_ref()
         .is_some_and(|cmd| command_exists(cmd));
 
-    // 2. Check if agent config directory exists (parent of skills path)
+    // 2. Check explicit detect_paths (e.g. /Applications/Warp.app)
+    if !detected {
+        detected = config.detect_paths.iter().any(|p| PathBuf::from(p).exists());
+    }
+
+    // 3. Check if agent config directory exists (parent of skills path)
     //    e.g. ~/.claude/skills → check ~/.claude/
     //    e.g. ~/.codeium/windsurf/skills → check ~/.codeium/windsurf/
     if !detected {
@@ -154,6 +164,23 @@ source_agent = "shared"
             loaded[0].additional_readable_paths[1].source_agent,
             "shared"
         );
+    }
+
+    #[test]
+    fn detect_from_detect_paths() {
+        let dir = test_dir("detect-paths");
+        let app_dir = dir.join("Warp.app");
+        fs::create_dir_all(&app_dir).expect("create app dir");
+        let config = AgentConfig {
+            slug: "warp".into(),
+            name: "Warp".into(),
+            enabled: true,
+            global_paths: vec!["/nonexistent/.warp/skills".into()],
+            detect_paths: vec![app_dir.to_string_lossy().to_string()],
+            ..Default::default()
+        };
+        let detected = detect_agents(&[config]);
+        assert!(detected[0].detected);
     }
 
     #[test]

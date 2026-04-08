@@ -289,18 +289,31 @@ fn render_extra_config(
     Ok(())
 }
 
+/// Max recursion depth to prevent cycles from symlinks pointing back up the tree.
+const COPY_MAX_DEPTH: u32 = 10;
+
 fn copy_dir_recursive(source: &Path, target: &Path) -> Result<(), std::io::Error> {
+    copy_dir_impl(source, target, 0)
+}
+
+fn copy_dir_impl(source: &Path, target: &Path, depth: u32) -> Result<(), std::io::Error> {
+    if depth > COPY_MAX_DEPTH {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("copy_dir_recursive: max depth ({COPY_MAX_DEPTH}) exceeded — possible symlink cycle"),
+        ));
+    }
+    // Resolve symlinks so we copy the real content
+    let source = fs::canonicalize(source).unwrap_or(source.to_path_buf());
     fs::create_dir_all(target)?;
-    for entry in fs::read_dir(source)? {
+    for entry in fs::read_dir(&source)? {
         let entry = entry?;
         let src_path = entry.path();
         let dst_path = target.join(entry.file_name());
-        let ft = entry.metadata()?.file_type();
-        if ft.is_symlink() {
-            // Skip symlinks — don't dereference to avoid copying large external trees
-            continue;
-        } else if ft.is_dir() {
-            copy_dir_recursive(&src_path, &dst_path)?;
+        // Use metadata() (follows symlinks) instead of symlink_metadata()
+        let meta = fs::metadata(&src_path)?;
+        if meta.is_dir() {
+            copy_dir_impl(&src_path, &dst_path, depth + 1)?;
         } else {
             fs::copy(&src_path, &dst_path)?;
         }
@@ -456,6 +469,29 @@ mod tests {
         assert!(!agent_link.exists());
     }
 
+
+    #[cfg(unix)]
+    #[test]
+    fn copy_dir_recursive_follows_symlinked_files() {
+        let src = test_dir("copy-sym-src");
+        let real_dir = test_dir("copy-sym-real");
+
+        // Create real file
+        fs::write(real_dir.join("SKILL.md"), "# real content").expect("write real");
+
+        // Create source dir with symlinked SKILL.md
+        fs::create_dir_all(&src).expect("create src");
+        std::os::unix::fs::symlink(real_dir.join("SKILL.md"), src.join("SKILL.md"))
+            .expect("create symlink");
+
+        let dst = test_dir("copy-sym-dst");
+        copy_dir_recursive(&src, &dst).expect("copy");
+
+        // Destination should have the real content, not a symlink
+        let content = fs::read_to_string(dst.join("SKILL.md")).expect("read");
+        assert_eq!(content, "# real content");
+        assert!(!is_symlink(&dst.join("SKILL.md")));
+    }
 
     #[test]
     fn git_install_name_uses_repo_basename_for_root() {

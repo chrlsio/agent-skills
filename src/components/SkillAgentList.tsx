@@ -25,6 +25,8 @@ interface SkillAgentListProps {
   onInstall: (targetAgents: string[]) => void;
   /** Called to uninstall the skill from a specific agent (receives skillId, agentSlug) */
   onUninstall: (skillId: string, agentSlug: string) => void;
+  /** When true, show agent list but disable install/uninstall actions */
+  readOnly?: boolean;
 }
 
 /**
@@ -38,6 +40,7 @@ export const SkillAgentList = memo(function SkillAgentList({
   busyAgents,
   onInstall,
   onUninstall,
+  readOnly = false,
 }: SkillAgentListProps) {
   const { t } = useTranslation();
   // If a local skill exists, the canonical copy is available — use sync (fast copy), not install (git clone)
@@ -84,13 +87,13 @@ export const SkillAgentList = memo(function SkillAgentList({
                 {t("skills.via", { name: sourceTag })}
               </span>
             ) : undefined}
-            onUninstall={isDirect && skill ? () => onUninstall(skill.id, agent.slug) : undefined}
-            onInstall={() => onInstall([agent.slug])}
+            onUninstall={!readOnly && isDirect && skill ? () => onUninstall(skill.id, agent.slug) : undefined}
+            onInstall={readOnly ? undefined : () => onInstall([agent.slug])}
             uninstallTitle={`${t("skills.uninstall")} ${agent.name}`}
             installLabel={actionLabel}
             installTitle={`${actionLabel} → ${agent.name}`}
             revealTitle={t("skills.revealInFinder")}
-            disabled={anyBusy}
+            disabled={readOnly || anyBusy}
             action={busyOp ? (
               <span className="shrink-0 inline-flex items-center gap-1 text-[10px] text-muted-foreground">
                 <Loader2 className="size-2.5 animate-spin" />

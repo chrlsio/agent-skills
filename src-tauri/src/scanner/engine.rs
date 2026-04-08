@@ -169,6 +169,7 @@ fn scan_inherited_root(
             .and_then(|f| f.to_str())
             .unwrap_or("unknown-skill")
             .to_string();
+        let collection = detect_collection(&skill_dir, root);
         let skill_name = parsed.name.clone().unwrap_or_else(|| dir_name.clone());
 
         let installation = SkillInstallation {
@@ -189,6 +190,7 @@ fn scan_inherited_root(
                 canonical_path: canonical.to_string_lossy().to_string(),
                 source: Some(resolve_source(&dir_name, &canonical, provenance)),
                 metadata: parsed.metadata,
+                collection,
                 scope: SkillScope::SharedGlobal,
                 installations: vec![installation],
             },
@@ -237,8 +239,12 @@ fn scan_skill_md_root(
             .unwrap_or("unknown-skill")
             .to_string();
 
-        let skill_name = parsed.name.clone().unwrap_or_else(|| dir_name.clone());
+        let raw_name = parsed.name.clone().unwrap_or_else(|| dir_name.clone());
         let symlink = is_symlink(&skill_dir);
+
+        let collection = detect_collection(&skill_dir, root);
+
+        let skill_name = raw_name;
 
         let installation = SkillInstallation {
             agent_slug: agent.slug.clone(),
@@ -264,6 +270,7 @@ fn scan_skill_md_root(
                 canonical_path: canonical.to_string_lossy().to_string(),
                 source: Some(resolve_source(&skill_id, &canonical, provenance)),
                 metadata: parsed.metadata,
+                collection,
                 scope: SkillScope::AgentLocal {
                     agent: agent.slug.clone(),
                 },
@@ -272,6 +279,43 @@ fn scan_skill_md_root(
         );
     }
     Ok(())
+}
+
+/// Detect if a skill belongs to a collection.
+///
+/// Checks two cases:
+/// 1. The skill directory itself is a symlink into a collection dir
+/// 2. The SKILL.md inside is a symlink into a collection dir
+///
+/// Example: `browse/SKILL.md` → `gstack/browse/SKILL.md` → collection = "gstack"
+fn detect_collection(skill_dir: &Path, skills_root: &Path) -> Option<String> {
+    // Case 1: directory is a symlink
+    if is_symlink(skill_dir) {
+        if let Some(c) = collection_from_real_path(skill_dir, skills_root) {
+            return Some(c);
+        }
+    }
+    // Case 2: SKILL.md inside is a symlink
+    let skill_md = skill_dir.join("SKILL.md");
+    if is_symlink(&skill_md) {
+        // Resolve SKILL.md's real path, then take its parent dir
+        let real_md = fs::canonicalize(&skill_md).ok()?;
+        let real_dir = real_md.parent()?;
+        return collection_from_real_path(real_dir, skills_root);
+    }
+    None
+}
+
+fn collection_from_real_path(real_or_link: &Path, skills_root: &Path) -> Option<String> {
+    let real = fs::canonicalize(real_or_link).ok()?;
+    let root_canon = fs::canonicalize(skills_root).ok()?;
+    let relative = real.strip_prefix(&root_canon).ok()?;
+    let components: Vec<_> = relative.components().collect();
+    if components.len() >= 2 {
+        components[0].as_os_str().to_str().map(String::from)
+    } else {
+        None
+    }
 }
 
 /// Resolve the source of a skill from the provenance registry, falling back to LocalPath.
@@ -314,6 +358,10 @@ fn resolve_source(
 /// - Upgrade scope to SharedGlobal if now installed in >1 agent
 fn merge_skill(dedup: &mut HashMap<String, Skill>, key: String, incoming: Skill) {
     if let Some(existing) = dedup.get_mut(&key) {
+        // Preserve collection from whichever side has it
+        if existing.collection.is_none() && incoming.collection.is_some() {
+            existing.collection = incoming.collection;
+        }
         for inst in incoming.installations {
             let dominated = existing
                 .installations
@@ -565,6 +613,68 @@ mod tests {
         assert_eq!(candidates.len(), 1);
         assert_eq!(candidates[0].parsed_name.as_deref(), Some("root-skill"));
         assert_eq!(candidates[0].dir, root);
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn detect_collection_from_symlinked_skill_md() {
+        // Simulate: skills_root/gstack/browse/SKILL.md exists
+        //           skills_root/browse/SKILL.md → skills_root/gstack/browse/SKILL.md
+        let root = test_dir("detect-collection");
+        let collection_skill = root.join("gstack").join("browse");
+        fs::create_dir_all(&collection_skill).expect("create collection skill dir");
+        fs::write(
+            collection_skill.join("SKILL.md"),
+            "---\nname: browse\ndescription: test\n---\nBody",
+        )
+        .expect("write skill");
+
+        // Create top-level dir with symlinked SKILL.md
+        let top_level = root.join("browse");
+        fs::create_dir_all(&top_level).expect("create top level dir");
+        std::os::unix::fs::symlink(
+            collection_skill.join("SKILL.md"),
+            top_level.join("SKILL.md"),
+        )
+        .expect("create symlink");
+
+        let result = detect_collection(&top_level, &root);
+        assert_eq!(result, Some("gstack".to_string()));
+
+        // Non-collection skill returns None
+        let standalone = root.join("standalone");
+        fs::create_dir_all(&standalone).expect("create standalone dir");
+        fs::write(
+            standalone.join("SKILL.md"),
+            "---\nname: standalone\ndescription: test\n---\nBody",
+        )
+        .expect("write skill");
+        let result = detect_collection(&standalone, &root);
+        assert_eq!(result, None);
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn detect_collection_from_symlinked_dir() {
+        // Simulate: skills_root/gstack/qa/ has SKILL.md
+        //           skills_root/qa → skills_root/gstack/qa (dir symlink)
+        let root = test_dir("detect-collection-dir");
+        let collection_skill = root.join("gstack").join("qa");
+        fs::create_dir_all(&collection_skill).expect("create dir");
+        fs::write(
+            collection_skill.join("SKILL.md"),
+            "---\nname: qa\ndescription: test\n---\nBody",
+        )
+        .expect("write skill");
+
+        std::os::unix::fs::symlink(&collection_skill, root.join("qa")).expect("create symlink");
+
+        let result = detect_collection(&root.join("qa"), &root);
+        assert_eq!(result, Some("gstack".to_string()));
 
         let _ = fs::remove_dir_all(&root);
     }

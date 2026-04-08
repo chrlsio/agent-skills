@@ -50,6 +50,8 @@ pub struct Skill {
     pub canonical_path: String,
     pub source: Option<SkillSource>,
     pub metadata: Option<serde_json::Value>,
+    /// Collection name if this skill belongs to a skill collection (e.g. "gstack")
+    pub collection: Option<String>,
     /// Scope: SharedGlobal if found in multiple agents or shared dir, otherwise AgentLocal
     pub scope: SkillScope,
     /// Per-agent installation records
